@@ -3,6 +3,8 @@ title: "Data Manipulation"
 author: "Jessica Lavery"
 date: "9/19/2019"
 output: github_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -10,3 +12,101 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
 ```
+
+## Import datasets
+```{r import}
+litters_data <- read_csv("./data/FAS_litters.csv")
+litters_data <- janitor::clean_names(litters_data)
+litters_data
+
+pups_data <- read_csv("./data/FAS_pups.csv")
+pups_data <- janitor::clean_names(pups_data)
+pups_data
+```
+
+## Select
+NOTE: typing ?select_helpers lists all of the helper functions to use within select
+
+```{r select}
+select(litters_data, group, litter_number)
+
+# starts_with is a helper function
+select(litters_data, litter_number, gd0_weight, starts_with("pups"))
+
+# difference between these two is in the order of the variables
+names(select(litters_data, litter_number, group, everything()))
+names(select(litters_data, everything()))
+
+# select a range of variables
+# select variables from group through pups_born_alive
+select(litters_data, group:pups_born_alive)
+
+# using select to rename
+select(litters_data, GROUP = group, litter_number) #GROUP is a new name for the existing group variable
+
+# can alternatively use the rename function
+rename(litters_data, GROUP = group)
+```
+
+# Filter
+```{r filter}
+filter(litters_data, group == "Con7")
+
+filter(litters_data, group == "Con7" | group == "Con8")
+
+#filter on a range of values
+filter(litters_data, gd0_weight %in% c(10:20)) #doesnt do the same as the below
+filter(litters_data, gd0_weight >= 10, gd0_weight <= 20)
+
+#do not use filter to remove missing values
+#i.e. do not do
+filter(litters_data, !is.na(gd0_weight))
+
+#instead use drop.na
+nrow(litters_data)
+
+nrow(drop_na(litters_data)) # complete cases only
+
+nrow(drop_na(litters_data, gd0_weight)) # cases not missing gd0_weight
+```
+
+# Mutate
+```{r mutate}
+mutate(litters_data,
+  wt_gain = gd18_weight - gd0_weight,
+  group = str_to_lower(group)
+)
+```
+
+# Arrange
+```{r arrange}
+arrange(litters_data, pups_born_alive)
+
+# descending
+arrange(litters_data, desc(pups_born_alive))
+
+# arrange according to multiple variables
+arrange(litters_data, pups_born_alive, gd0_weight)
+```
+
+# Magrittr: %>% 
+```{r pipes}
+litters_data = 
+  read_csv("./data/FAS_litters.csv", col_types = "ccddiiii") %>%
+  janitor::clean_names() %>%
+  select(-pups_survive) %>%
+  mutate(
+    wt_gain = gd18_weight - gd0_weight,
+    group = str_to_lower(group)) %>% 
+  drop_na(wt_gain)
+
+litters_data
+
+#how the pipe works
+litters_data = 
+  read_csv("./data/FAS_litters.csv", col_types = "ccddiiii") %>%
+  janitor::clean_names(dat = .) %>%
+  select(.data = ., -pups_survive)  #first argument to select is called ".data", supplying . to indicate that's where we'll fill in with litters_data
+```
+
+
