@@ -3,6 +3,8 @@ title: "Data Import"
 author: "Jessica Lavery"
 date: "9/17/2019"
 output: github_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -13,7 +15,7 @@ library(tidyverse)
 
 # Load in a dataset
 ```{r load_dset}
-# be careful to use read_csv instead of read.csv
+# be careful to use read_csv (reads in as a tibble) instead of read.csv (reads in data frame)
 litters_data = read_csv(file = "./data/FAS_litters.csv")
 ```
 
@@ -42,6 +44,66 @@ tail(litters_data, 5)
 # skim the data
 skimr::skim(litters_data)
 ```
+
+# Read in pups dataset
+```{r}
+pups_data <- read_csv("./data/FAS_pups.csv")
+```
+
+# Clean pups variable names
+```{r}
+# look at existing variable names
+names(pups_data)
+
+# clean variable names
+pups_data = janitor::clean_names(pups_data)
+
+# look at new variable names
+names(pups_data)
+```
+
+# Inspect the pups data
+```{r}
+# look at first few rows
+pups_data
+
+# look at last few rows
+tail(pups_data, n = 10)
+
+# skim the data
+skimr::skim(pups_data)
+```
+
+# Compare read in with base R
+```{r}
+pups_base = read.csv("./data/FAS_pups.csv")
+pups_readr = read_csv("./data/FAS_pups.csv")
+```
+
+# Read Excel files
+```{r}
+library(readxl)
+
+mlb11_data <- read_excel("./data/mlb11.xlsx", n_max = 20)
+
+# variable names are clean, don't need to use janitor::clean_names
+head(mlb11_data, 5)
+```
+
+# Read in a SAS dataset
+```{r}
+library(haven)
+
+pulse_data = read_sas("./data/public_pulse_data.sas7bdat")
+
+#variable names are mixed case, want to clean
+head(pulse_data, 5)
+
+pulse_data = janitor::clean_names(pulse_data)
+
+names(pulse_data)
+```
+
 
 
 
