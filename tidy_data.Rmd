@@ -11,4 +11,161 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse)
+
+options(tibble.print_min = 5)
 ```
+
+## Wide to long
+
+```{r}
+pulse_data <-  haven::read_sas("./data/public_pulse_data.sas7bdat") %>% 
+  janitor::clean_names()
+
+pulse_data
+
+#can also write cols as bdi_score_bl:bdi_score_12m
+pulse_tidy_data <- pulse_data %>% 
+  pivot_longer(cols = c(bdi_score_bl, bdi_score_01m, bdi_score_06m, bdi_score_12m),
+               names_to = "visit", 
+               names_prefix = "bdi_score_", #removes bdi_score from the prefix in the visit variable
+               values_to = "bdi")
+
+pulse_tidy_data
+```
+
+```{r}
+#can do all of this in a single step with pipes and further clean up the data
+pulse_data <-  haven::read_sas("./data/public_pulse_data.sas7bdat") %>% 
+  janitor::clean_names() %>% 
+  pivot_longer(cols = bdi_score_bl:bdi_score_12m,
+               names_to = "visit", 
+               names_prefix = "bdi_score_", 
+               values_to = "bdi") %>% 
+  select(id, visit, everything()) %>% 
+  mutate(visit_replace = replace(visit, visit == "bl", "00m"),
+         visit_recode = recode(visit, "bl" = "00m"),
+         visit_factor = factor(visit_recode, levels = str_c(c("00", "01", "06", "12"), "m"))) %>% 
+  arrange(id, visit)
+
+pulse_data
+```
+
+## Separate function example in the Litters dataset
+
+```{r}
+litters_data <- read_csv("./data/FAS_litters.csv") %>% 
+  janitor::clean_names() %>% 
+  # count(group)
+  separate(col = group, into = c("dose", "day_of_tx"), sep = 3) %>% #sep indicates separator between columns, character/numeric have different implications, numeric is position to split at 
+  mutate(dose = str_to_lower(dose),
+  wt_gain = gd18_weight - gd0_weight) %>%
+  arrange(litter_number)
+
+litters_data
+```
+
+```{r}
+litters_data_long <- litters_data %>% 
+  pivot_longer(cols = gd0_weight:gd18_weight,
+               names_to = "gd",
+               names_prefix = "gd",
+               values_to = "weight") %>% 
+  select(litter_number, gd, weight) %>% 
+  mutate(gd = recode(gd, "0_weight" = 0, "18_weight" = 18))
+
+str(litters_data_long)
+```
+
+## Pivot wider
+
+```{r}
+analysis_result = tibble(
+  group = c("treatment", "treatment", "placebo", "placebo"),
+  time = c("pre", "post", "pre", "post"),
+  mean = c(4, 8, 3.5, 4)
+)
+
+analysis_result
+
+pivot_wider(
+  analysis_result, 
+  names_from = "time", 
+  values_from = "mean")
+```
+
+## Binding rows
+
+```{r}
+fellowship_ring = 
+  readxl::read_excel("./data/LotR_Words.xlsx", range = "B3:D6") %>%
+  mutate(movie = "fellowship_ring")
+
+two_towers = 
+  readxl::read_excel("./data/LotR_Words.xlsx", range = "F3:H6") %>%
+  mutate(movie = "two_towers")
+
+return_king = 
+  readxl::read_excel("./data/LotR_Words.xlsx", range = "J3:L6") %>%
+  mutate(movie = "return_king")
+
+lotr_tidy <- bind_rows(fellowship_ring, two_towers, return_king) %>% 
+  janitor::clean_names() %>% 
+  pivot_longer(cols = female:male,
+               names_to = "sex",
+               values_to = "words") %>% 
+  mutate(race = str_to_lower(race)) %>% 
+  select(movie, everything())
+
+lotr_tidy
+```
+
+## Joining
+```{r}
+pup_data = 
+  read_csv("./data/FAS_pups.csv", col_types = "ciiiii") %>%
+  janitor::clean_names() %>%
+  mutate(sex = recode(sex, `1` = "male", `2` = "female")) 
+
+litter_data = 
+  read_csv("./data/FAS_litters.csv", col_types = "ccddiiii") %>%
+  janitor::clean_names() %>%
+  select(-pups_survive) %>%
+  mutate(
+    wt_gain = gd18_weight - gd0_weight,
+    group = str_to_lower(group))
+
+#merge litter information onto the pup data (1 rec/pup, merge on 1 rec/litter)
+fas_data = 
+  left_join(pup_data, litter_data, by = "litter_number")
+
+fas_data %>% view()
+```
+
+### Joins learning assessment
+```{r}
+surv_os <- read_csv("./data/survey_results/surv_os.csv") %>% 
+  janitor::clean_names() %>% 
+  rename(id = what_is_your_uni, os = what_operating_system_do_you_use)
+  # separate(col = what_is_your_uni, into = c("drop", "student"), sep = "_")
+surv_os
+
+surv_pr_git <- read_csv("./data/survey_results/surv_program_git.csv") %>% 
+  janitor::clean_names() %>% 
+  rename(id = what_is_your_uni, 
+         degree = what_is_your_degree_program, 
+         git = which_most_accurately_describes_your_experience_with_git)
+
+#practice different types of joins
+left <- left_join(surv_os, surv_pr_git)
+nrow(left)
+
+inner <- inner_join(surv_os, surv_pr_git)
+nrow(inner)
+
+anti_os <- anti_join(surv_os, surv_pr_git)
+nrow(anti_os)
+
+anti_git <- anti_join(surv_pr_git, surv_os)
+nrow(anti_git)
+```
+
